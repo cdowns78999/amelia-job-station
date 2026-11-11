@@ -39,7 +39,7 @@ New-Item -ItemType Directory -Force -Path $pack | Out-Null
 Copy-Item (Join-Path $PSScriptRoot "Amelia Job Search.exe"), (Join-Path $PSScriptRoot "Amelia Job Search.ps1"), (Join-Path $PSScriptRoot "Amelia Job Search (backup).bat") $pack
 Copy-Item (Join-Path $Repo "widget\widget.html"), $vf $pack   # bundled fallback when GitHub is unreachable
 @("AMELIA JOB SEARCH $new - SETUP", "", "1. Right-click this zip, choose Extract All.", "2. Double-click Amelia Job Search.exe (if Windows warns: More info, then Run anyway).",
-  "3. If the exe is blocked, double-click Amelia Job Search (backup).bat instead.", "4. Follow the connection checks, then pair on the app's Helper tab with the AJS- code.") | Set-Content (Join-Path $pack "README.txt")
+  "3. If the exe is blocked, double-click Amelia Job Search (backup).bat instead.", "4. Follow the connection checks, then open the app, press PAIR MY WIDGET, enter your email and the AJS- code, press SEND. Chad approves you.") | Set-Content (Join-Path $pack "README.txt")
 $dist = Join-Path $Repo "dist"; New-Item -ItemType Directory -Force -Path $dist | Out-Null
 Compress-Archive -Path $pack -DestinationPath (Join-Path $dist "Amelia-Job-Search-Setup.zip") -Force
 Remove-Item $tmp -Recurse -Force

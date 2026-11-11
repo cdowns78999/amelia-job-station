@@ -128,7 +128,74 @@ footer{display:flex;align-items:center;justify-content:space-between;gap:8px;mar
 .empty{color:var(--lg);text-align:center;padding:40px 0}
 .msg{font-family:var(--px);font-size:9px;color:var(--y);min-height:14px;margin-top:8px}
 @media (max-width:520px){h1{font-size:11px}.tabs button{font-size:8px}}
+
+/* ===== SKY THEME (Chad, 2026-11-10): breezy cloud sky, floating white tiles, soft shadows. Look only, no logic. =====
+   The old EGA tokens are remapped so every rule and inline style follows: --k is now a light face, --w is dark text. */
+:root{
+  --k:#ffffff; --w:#1d2b45; --b:rgba(255,255,255,.88); --lg:#5a6a86; --dg:#d5e0f0;
+  --y:#b4570a; --bc:#1a62c4; --bb:#3d72e3; --bg2:#1d8a3e; --g:#2e9e4f; --r:#d34848; --bm:#a23bb5;
+  --sky1:#7fc4f5; --sky2:#bfe4ff; --sky3:#eef8ff; --shadow:0 2px 4px rgba(30,60,110,.08),0 8px 24px rgba(30,60,110,.14);
+  --shadow-up:0 4px 8px rgba(30,60,110,.10),0 16px 36px rgba(30,60,110,.20);
+  --rd:'Nunito','Segoe UI',system-ui,sans-serif;
+}
+body{background:linear-gradient(180deg,var(--sky1) 0%,var(--sky2) 55%,var(--sky3) 100%) fixed;color:var(--w);font-family:var(--rd);font-size:16px;line-height:1.45}
+#stars{inset:0;background:none;overflow:hidden;pointer-events:none}
+#stars::before,#stars::after{content:"";position:absolute;inset:0 -100% 0 0;background-repeat:repeat-x}
+#stars::before{opacity:.9;background-image:
+  radial-gradient(60px 26px at 80px 90px,#fff 98%,transparent),radial-gradient(44px 30px at 130px 76px,#fff 98%,transparent),radial-gradient(54px 22px at 180px 94px,#fff 98%,transparent),
+  radial-gradient(70px 28px at 420px 220px,#fff 98%,transparent),radial-gradient(48px 32px at 470px 200px,#fff 98%,transparent),radial-gradient(58px 24px at 530px 222px,#fff 98%,transparent);
+  background-size:640px 100%;animation:drift 140s linear infinite}
+#stars::after{opacity:.55;background-image:
+  radial-gradient(90px 34px at 250px 150px,#fff 98%,transparent),radial-gradient(64px 40px at 320px 128px,#fff 98%,transparent),radial-gradient(80px 30px at 390px 152px,#fff 98%,transparent),
+  radial-gradient(76px 30px at 700px 380px,#fff 98%,transparent),radial-gradient(56px 36px at 760px 360px,#fff 98%,transparent);
+  background-size:900px 100%;animation:drift 240s linear infinite}
+@keyframes drift{to{transform:translateX(50%)}}
+/* floating tiles */
+.bev{border:1px solid rgba(255,255,255,.9);border-radius:14px;background:rgba(255,255,255,.96);box-shadow:var(--shadow);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);transition:box-shadow .25s ease,transform .25s ease}
+.bev.dark{background:rgba(255,255,255,.96)}
+.job:hover,.tile:hover,.pool:hover{box-shadow:var(--shadow-up);transform:translateY(-2px)}
+header{background:rgba(255,255,255,.94);border-radius:14px;box-shadow:var(--shadow)}
+h1,.colh,.pool h2{color:var(--bc)}
+.ver{color:var(--lg)}
+/* buttons become soft pills; text stays white on colour for contrast */
+button{font-family:var(--rd);font-weight:800;font-size:13px;letter-spacing:.3px;color:var(--w);background:#fff;border:1px solid #cdd9ec;border-radius:999px;padding:10px 16px;box-shadow:0 2px 6px rgba(30,60,110,.14);transition:transform .15s ease,box-shadow .15s ease,background .15s}
+button:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 6px 14px rgba(30,60,110,.2)}
+button:active,button.press{border-color:#cdd9ec;transform:translateY(1px);box-shadow:0 1px 3px rgba(30,60,110,.18)}
+button.hot{background:var(--r);color:#fff;border-color:transparent} button.go{background:var(--g);color:#fff;border-color:transparent} button.lit{background:var(--bb);color:#fff;border-color:transparent}
+.tabs button{font-size:12px;border-radius:12px}.tabs.top button{font-size:14px}
+.tabs button .n{color:inherit;opacity:.85}
+.pick button{font-size:12px;padding:7px 12px}
+.dot{font-family:var(--rd);font-weight:800;font-size:12px;color:var(--lg);background:none;box-shadow:none;border:0}
+.dot::before{color:#c3d2ea}.dot.on{color:var(--bc)}.dot.on::before{color:var(--bc)}
+.dot:hover:not(:disabled){box-shadow:none}
+.plate{color:#fff;border-radius:8px;box-shadow:0 2px 6px rgba(180,87,10,.25)}
+.job b{font-size:19px}.tile{font-size:15px}.tile b{font-size:16px}
+.steps li{border-bottom:1px solid #e1e9f5}.ck,.trk,#setup .sstep{border-bottom:1px solid #e1e9f5}
+.box{border-radius:6px;border-width:2px;background:#fff}
+.chip{font-size:14px;background:#fff;border:2px solid var(--g);border-radius:999px;padding:3px 10px}
+textarea,select,.kitin,input{font-family:var(--rd)!important;font-size:15px!important;color:var(--w)!important;background:#fff!important;border:1px solid #c6d4ea!important;border-radius:10px;padding:8px 10px;transition:border-color .15s,box-shadow .15s}
+textarea:focus,select:focus,input:focus{outline:none;border-color:var(--bb)!important;box-shadow:0 0 0 3px rgba(61,114,227,.25)}
+.trk input[type=date]{color-scheme:light}
+.zone{border:2px dashed #b9cbe6;border-radius:12px;background:rgba(255,255,255,.45);transition:background .2s,border-color .2s,box-shadow .2s}
+.zone.over{border-color:var(--bb);background:rgba(61,114,227,.12);box-shadow:0 0 0 4px rgba(61,114,227,.15)}
+.zt{font-family:var(--rd);font-weight:800;font-size:12px;color:var(--bc)}
+.tile.sel{outline:3px solid var(--bb);outline-offset:1px}
+.badge{border-radius:6px}
+.pill{font-family:var(--rd);font-weight:800;font-size:11px;border-radius:999px;color:#fff;border-color:transparent}
+.pill.notcalled{background:#8a97ad}
+#checks{background:rgba(120,170,220,.45);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+#setup{background:rgba(120,170,220,.55);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+#checks .card,#setup .card{box-shadow:var(--shadow-up)}
+#setup .sstep>b{color:#fff;background:var(--bc);border-radius:8px}
+.ck .st{font-family:var(--rd);font-weight:800;font-size:12px}.ck .bad{color:var(--r)}
+#conn{font-family:var(--rd);font-weight:800;font-size:12px;border-radius:999px;background:#1d8a3e;border:2px solid #7fe39a}
+#conn i{border-radius:50%;background:#bdf7cb}
+.msg{font-family:var(--rd);font-weight:700;font-size:13px}
+.cursor{font-family:var(--rd);font-size:12px}
+.empty{color:var(--lg)}
+@media (prefers-reduced-motion:reduce){#stars::before,#stars::after{animation:none}.bev,button{transition:none}}
 </style>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
 <script src="checks.js"></script>
@@ -139,7 +206,7 @@ footer{display:flex;align-items:center;justify-content:space-between;gap:8px;mar
   <p>Pairing links this widget to your account so your searches can travel. It takes one minute and you only do it once.</p>
   <div class="sstep"><b>1</b><div>Copy your code<div class="code" id="sCode">GETTING CODE...</div><button class="go" id="sCopy">COPY CODE</button></div></div>
   <div class="sstep"><b>2</b><div>Open the pairing page<br><button class="lit" id="sOpen">OPEN THE PAIRING PAGE</button></div></div>
-  <div class="sstep"><b>3</b><div>On that page: PAIR MY WIDGET, sign in with Google, paste the code, press PAIR.</div></div>
+  <div class="sstep"><b>3</b><div>On that page: PAIR MY WIDGET, enter your email, paste the code, press SEND. Chad approves you.</div></div>
   <div class="sstep"><b>4</b><div>Come back here<br><button class="go" id="sCheck">I PAIRED IT, CHECK NOW</button></div></div>
   <div class="msg" id="sMsg"></div>
   <div class="mute">This screen closes by itself once you are paired. The code refreshes every 10 minutes.</div>
@@ -565,7 +632,7 @@ current one is finished and the user has said so.
 <div class="wrap">
   <header class="bev bob">
     <h1>AMELIA<br>JOB SEARCH</h1>
-    <div class="ver"><span id="ver">v0.4.6</span><small id="upd">CHECKING FOR UPDATE</small></div>
+    <div class="ver"><span id="ver">v0.4.7</span><small id="upd">CHECKING FOR UPDATE</small></div>
   </header>
   <div class="tabs top" id="views"></div>
   <div class="tabs" id="tabs"></div>
@@ -621,7 +688,7 @@ var LANES=[["indeed","INDEED"],["linkedin","LINKEDIN"]];if(S.form.lane==="cfc")S
 function searchPanel(){
   if(!S.paired){
     if(!S.code||Date.now()-S.codeAt>9*60*1000)pairStart();
-    return '<span class="plate">STEP 1 &middot; PAIR THIS WIDGET</span><p>Open the Amelia Job Search app, go to the Helper tab, and type this code under Pair your Job Search widget.</p><div class="code">'+esc(S.code)+'</div><p class="mute">The code runs out in 10 minutes. This panel changes by itself once you pair.</p>'+(S.err?'<div class="msg">'+esc(S.err)+"</div>":"")+'<div class="row"><button id="openapp">OPEN THE APP</button></div>';
+    return '<span class="plate">STEP 1 &middot; PAIR THIS WIDGET</span><p>Open the Amelia Job Search app, press PAIR MY WIDGET, enter your email and this code, then press SEND. Chad approves you.</p><div class="code">'+esc(S.code)+'</div><p class="mute">The code runs out in 10 minutes. This panel changes by itself once you pair.</p>'+(S.err?'<div class="msg">'+esc(S.err)+"</div>":"")+'<div class="row"><button id="openapp">OPEN THE APP</button></div>';
   }
   var f=S.form,r=S.req;
   var pick=function(key,list,multi){return '<div class="pick">'+list.map(function(x){var v=Array.isArray(x)?x[0]:x,lab=Array.isArray(x)?x[1]:x,on=multi?f[key].indexOf(v)>-1:f[key]===v;return '<button class="'+(on?"lit":"")+'" data-pick="'+key+'" data-v="'+esc(v)+'" data-m="'+(multi?1:0)+'">'+esc(lab)+"</button>";}).join("")+"</div>";};
@@ -918,7 +985,7 @@ setInterval(function(){var t=(Date.now()-t0)/1000;stars.style.transform="transla
   document.querySelectorAll(".bob").forEach(function(el,i){el.style.transform="translateY("+Math.round(Math.sin(t*2*Math.PI/2.6+i)*1.5)+"px)";});},80);
 /* version plate, same idea as the WAOV widget: installed version in cyan, a yellow note when GitHub has a newer one.
    The launcher opens this page with ?v=<installed version>; the built-in number is the fallback. */
-var WIDGET_VERSION="0.4.6";
+var WIDGET_VERSION="0.4.7";
 var mine=(/[?&]v=([0-9.]{1,12})/.exec(location.search)||[])[1]||WIDGET_VERSION;
 document.getElementById("ver").textContent="v"+mine;
 function newer(a,b){a=a.split(".").map(Number);b=b.split(".").map(Number);for(var i=0;i<3;i++){if((a[i]||0)!==(b[i]||0))return (a[i]||0)>(b[i]||0);}return false;}
