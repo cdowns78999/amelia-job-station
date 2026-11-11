@@ -1,0 +1,11 @@
+Run /amelia-job-hunt --relay-{LANE} with these fixed fields. Nobody is watching this run.
+Read only the file that flag names (C:\Users\chad\.claude\skills\amelia-job-hunt\relay-{LANE}.md) and follow it exactly.
+
+  kinds:   {KINDS}
+  cities:  {CITIES}
+  miles:   {MILES}
+  mode:    {MODE}
+  total:   {TOTAL}
+  OUT:     {OUT}
+
+Print one short line per step, starting with "STEP:". Read only: never apply, submit, send, save or sign in.
