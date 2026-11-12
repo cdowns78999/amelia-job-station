@@ -66,6 +66,19 @@ try {
     $exeHome = Join-Path $Home2 "Amelia Job Search.exe"
     if ($self -ne $exeHome) { Copy-Item $self $exeHome -Force }
     if (-not (Test-Path $lnk)) { $w = New-Object -ComObject WScript.Shell; $sc = $w.CreateShortcut($lnk); $sc.TargetPath = $exeHome; $sc.WorkingDirectory = $Home2; $sc.Save() }
+  } elseif (-not (Test-Path $lnk)) {
+    # Started from the .ps1 or the backup .bat: keep a copy of this script in the install folder and point the
+    # Desktop shortcut at it (or at the installed exe, if an earlier exe run left one), so there is always one shortcut.
+    $exeHome = Join-Path $Home2 "Amelia Job Search.exe"
+    $w = New-Object -ComObject WScript.Shell; $sc = $w.CreateShortcut($lnk); $sc.WorkingDirectory = $Home2
+    if (Test-Path $exeHome) { $sc.TargetPath = $exeHome }
+    elseif ($PSCommandPath) {
+      $psHome2 = Join-Path $Home2 "Amelia Job Search.ps1"
+      if ($PSCommandPath -ne $psHome2) { Copy-Item $PSCommandPath $psHome2 -Force }
+      $sc.TargetPath = "powershell.exe"
+      $sc.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$psHome2`""
+    }
+    if ($sc.TargetPath) { $sc.Save() }
   }
 
   $chromePath = @("$env:ProgramFiles\Google\Chrome\Application\chrome.exe", "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe", "$env:LOCALAPPDATA\Google\Chrome\Application\chrome.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
