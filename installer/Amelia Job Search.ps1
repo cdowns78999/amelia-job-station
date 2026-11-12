@@ -96,6 +96,8 @@ try {
   $checks += Chk "Chrome installed" ([bool]$chromePath) $(if ($chromePath) { $chromePath } else { "install Google Chrome" })
   $docs = [Environment]::GetFolderPath("MyDocuments")
   $resume = Join-Path $docs "Resume"
+  # Save them a step: make Documents\Resume if it is missing. Never touches files already inside it.
+  if (-not (Test-Path $resume)) { try { New-Item -ItemType Directory -Path $resume -Force | Out-Null } catch {} }
   $checks += Chk "Resume folder" (Test-Path $resume) $resume
   $json = @{ at = (Get-Date -Format s); version = $(if (Test-Path $VerFile) { (Get-Content $VerFile -Raw | ConvertFrom-Json).widget } else { "0.0.0" }); checks = $checks } | ConvertTo-Json -Depth 4 -Compress
   Set-Content -Path (Join-Path $Home2 "checks.js") -Value "window.AJS_CHECKS = $json;" -Encoding UTF8

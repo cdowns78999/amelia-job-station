@@ -632,7 +632,7 @@ current one is finished and the user has said so.
 <div class="wrap">
   <header class="bev bob">
     <h1>AMELIA<br>JOB SEARCH</h1>
-    <div class="ver"><span id="ver">v0.4.8</span><small id="upd">CHECKING FOR UPDATE</small></div>
+    <div class="ver"><span id="ver">v0.4.9</span><small id="upd">CHECKING FOR UPDATE</small></div>
   </header>
   <div class="tabs top" id="views"></div>
   <div class="tabs" id="tabs"></div>
@@ -985,7 +985,7 @@ setInterval(function(){var t=(Date.now()-t0)/1000;stars.style.transform="transla
   document.querySelectorAll(".bob").forEach(function(el,i){el.style.transform="translateY("+Math.round(Math.sin(t*2*Math.PI/2.6+i)*1.5)+"px)";});},80);
 /* version plate, same idea as the WAOV widget: installed version in cyan, a yellow note when GitHub has a newer one.
    The launcher opens this page with ?v=<installed version>; the built-in number is the fallback. */
-var WIDGET_VERSION="0.4.8";
+var WIDGET_VERSION="0.4.9";
 var mine=(/[?&]v=([0-9.]{1,12})/.exec(location.search)||[])[1]||WIDGET_VERSION;
 document.getElementById("ver").textContent="v"+mine;
 function newer(a,b){a=a.split(".").map(Number);b=b.split(".").map(Number);for(var i=0;i<3;i++){if((a[i]||0)!==(b[i]||0))return (a[i]||0)>(b[i]||0);}return false;}
