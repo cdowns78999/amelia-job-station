@@ -7,4 +7,6 @@ One repository, two parts.
 
 No secrets live here. The relay key stays in `%LOCALAPPDATA%\AmeliaRelay\relay-key.txt` on the search computer, and each widget makes its own key at install.
 
+Shared update check: `installer/WidgetUpdate.ps1` (one `Invoke-WidgetUpdate` call per launch; any future widget launcher reuses it with its own name, repo URL and `version.json`).
+
 Source of truth for edits: `00302-Widget-Master\amelia-job-station` (widget) and `00102-build\amelia-job-hunt\relay` (relay). Copy into this repository, bump `version.json`, then release.

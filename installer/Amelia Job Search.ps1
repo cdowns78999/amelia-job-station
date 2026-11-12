@@ -1,4 +1,4 @@
-# Amelia Job Search: installer, updater and launcher in one file (built into Amelia Job Search.exe by build-exe.ps1).
+﻿# Amelia Job Search: installer, updater and launcher in one file (built into Amelia Job Search.exe by build-exe.ps1).
 # Every run: loading screen -> install if missing -> check GitHub for a newer widget -> open the widget window.
 # Touches only %LOCALAPPDATA%\AmeliaJobStation and one Desktop shortcut. No admin, no services, no hidden tasks.
 param([switch]$NoWindow)
@@ -33,21 +33,18 @@ try {
   Step "CHECKING THE INSTALL" 15
   $local = if (Test-Path $VerFile) { (Get-Content $VerFile -Raw | ConvertFrom-Json).widget } else { "0.0.0" }
 
-  Step "CHECKING FOR AN UPDATE" 40
-  $remote = $null
-  try { $remote = (Invoke-RestMethod -Uri "$Repo/version.json" -TimeoutSec 5).widget } catch { Step "OFFLINE, USING THE INSTALLED VERSION" 45 }
-
-  if ($remote -and ([version]$remote -gt [version]$local -or -not (Test-Path $Widget))) {
-    Step "INSTALLING VERSION $remote" 65
-    $tmp = "$Widget.download"
-    Invoke-WebRequest -Uri "$Repo/widget/widget.html" -OutFile $tmp -TimeoutSec 20 -UseBasicParsing
-    $body = Get-Content $tmp -Raw
-    # sanity check before swapping: right file, sane size
-    if ($body -notmatch "AMELIA" -or $body.Length -lt 5000 -or $body.Length -gt 2000000) { Remove-Item $tmp; throw "the downloaded widget did not look right, kept the old one" }
-    if (Test-Path $Widget) { Copy-Item $Widget "$Widget.previous" -Force }
-    Move-Item $tmp $Widget -Force
-    @{ widget = $remote } | ConvertTo-Json | Set-Content $VerFile
-  } elseif (-not (Test-Path $Widget)) {
+  # Shared launch-time update check (WidgetUpdate.ps1). Prefers the copy in the install folder, then the one beside the launcher.
+  $exeDir = Split-Path ([Diagnostics.Process]::GetCurrentProcess().MainModule.FileName) -Parent
+  if ($PSScriptRoot) { $exeDir = $PSScriptRoot }
+  $mod = @((Join-Path $Home2 "WidgetUpdate.ps1"), (Join-Path $exeDir "WidgetUpdate.ps1")) | Where-Object { Test-Path $_ } | Select-Object -First 1
+  $upd = $null
+  if ($mod) {
+    . $mod
+    if ($mod -ne (Join-Path $Home2 "WidgetUpdate.ps1")) { Copy-Item $mod (Join-Path $Home2 "WidgetUpdate.ps1") -Force }
+    try { $upd = Invoke-WidgetUpdate -Name "Amelia Job Search" -RepoRaw $Repo -InstallDir $Home2 -WidgetFile "widget.html" -RepoWidgetPath "widget/widget.html" -MustContain "AMELIA" -Say { param($text, $pct) Step $text $pct } }
+    catch { Step "UPDATE CHECK FAILED, USING THE BUNDLED COPY" 50 }
+  } else { Step "UPDATE MODULE MISSING, USING THE INSTALLED VERSION" 45 }
+  if (-not (Test-Path $Widget)) {
     # GitHub not reachable (offline, or repo not public yet): install the copy bundled in the zip.
     $here = Split-Path ([Diagnostics.Process]::GetCurrentProcess().MainModule.FileName) -Parent
     if ($PSScriptRoot) { $here = $PSScriptRoot }
