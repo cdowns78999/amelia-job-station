@@ -222,6 +222,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;heigh
 .sten.landing{border-color:rgba(56,232,255,.7);background:rgba(7,16,24,.5)}.sten.landing .state{color:#fff;animation:breathe2 .9s ease-in-out infinite}
 .sten.leave{animation:blkOut .3s ease-in both}
 .sten .sh,.sten .state{transition:color .3s}
+#lbanner{position:fixed;left:50%;top:14px;z-index:98;transform:translate(-50%,-30px);opacity:0;display:flex;gap:14px;align-items:center;flex-wrap:wrap;justify-content:center;background:rgba(7,16,24,.96);border:1px solid rgba(56,232,255,.55);border-radius:16px;padding:10px 16px;max-width:calc(100vw - 32px);transition:opacity .45s,transform .55s var(--glide)}
+#lbanner.on{opacity:1;transform:translate(-50%,0)}
 #toast{position:fixed;left:50%;bottom:24px;z-index:99;transform:translate(-50%,20px);opacity:0;pointer-events:none;background:rgba(7,16,24,.95);border:1px solid rgba(56,232,255,.5);border-radius:999px;padding:10px 20px;font-weight:600;color:#fff;transition:opacity .35s,transform .45s var(--glide);max-width:calc(100vw - 32px)}
 #toast.on{opacity:1;transform:translate(-50%,0)}
 .flyer{position:fixed;z-index:96;pointer-events:none;border:1px dashed var(--cyan);border-radius:16px;background:rgba(7,16,24,.6);transition:transform .7s var(--glide),opacity .7s}
@@ -776,7 +778,7 @@ current one is finished and the user has said so.
     <div class="brand"><h1>Amelia Job Search</h1><div class="sub">Job search workstation</div></div>
     <div class="hright">
       <button class="tiny" id="mute">Sound off</button><button class="tiny" id="checksbtn">Checks</button>
-      <div class="ver"><span id="ver">v0.4.11</span><small id="upd">checking for update</small></div>
+      <div class="ver"><span id="ver">v0.4.12</span><small id="upd">checking for update</small></div>
     </div>
   </header>
   <nav id="views"><span id="vbar"></span></nav>
@@ -1361,9 +1363,11 @@ function startGlow(){
 }
 
 /* ===== version plate ===== */
-var WIDGET_VERSION="0.4.11";
+var WIDGET_VERSION="0.4.12";
 var mine=(/[?&]v=([0-9.]{1,12})/.exec(location.search)||[])[1]||WIDGET_VERSION;
 $("ver").textContent="v"+mine;
+/* opened by a launcher older than 1.1.0 (no &l=): ask once to get the self-updating launcher */
+if(/[?&]v=/.test(location.search)&&!/[?&]l=/.test(location.search)&&!S.oldLauncherSeen)setTimeout(function(){var b=document.createElement("div");b.id="lbanner";b.innerHTML='<span>A faster launcher that updates itself is ready. Download the setup once more and run it.</span><a class="flink" href="https://amelia-job-hunt.netlify.app/download/Amelia-Job-Search-Setup.zip" target="_blank" rel="noopener">Get the new setup</a><button class="tiny" id="lbx">Later</button>';document.body.appendChild(b);setTimeout(function(){b.classList.add("on");},50);$("lbx").onclick=function(){S.oldLauncherSeen=1;save();b.classList.remove("on");};},2500);
 function newer(a,b){a=a.split(".").map(Number);b=b.split(".").map(Number);for(var i=0;i<3;i++){if((a[i]||0)!==(b[i]||0))return(a[i]||0)>(b[i]||0);}return false;}
 fetch("https://raw.githubusercontent.com/cdowns78999/amelia-job-station/main/version.json",{cache:"no-store"}).then(function(r){return r.json();})
   .then(function(j){$("upd").textContent=newer(String(j.widget||"0"),mine)?"update available, reopen to install":"up to date";}).catch(function(){$("upd").textContent="offline";});

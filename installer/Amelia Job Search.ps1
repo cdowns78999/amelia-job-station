@@ -1,7 +1,8 @@
 # Amelia Job Search: installer, updater and launcher in one file (built into Amelia Job Search.exe by build-exe.ps1).
 # Every run: loading screen -> install if missing -> check GitHub for a newer widget -> open the widget window.
 # Touches only %LOCALAPPDATA%\AmeliaJobStation and one Desktop shortcut. No admin, no services, no hidden tasks.
-param([switch]$NoWindow)
+param([switch]$NoWindow, [switch]$Handoff)
+$LauncherVersion = "1.1.0"
 $ErrorActionPreference = "Stop"
 $Repo = "https://raw.githubusercontent.com/cdowns78999/amelia-job-station/main"
 $Home2 = Join-Path $env:LOCALAPPDATA "AmeliaJobSearch"
@@ -34,8 +35,25 @@ try {
   $local = if (Test-Path $VerFile) { (Get-Content $VerFile -Raw | ConvertFrom-Json).widget } else { "0.0.0" }
 
   Step "CHECKING FOR AN UPDATE" 40
-  $remote = $null
-  try { $remote = (Invoke-RestMethod -Uri "$Repo/version.json" -TimeoutSec 5).widget } catch { Step "OFFLINE, USING THE INSTALLED VERSION" 45 }
+  $remote = $null; $vj = $null
+  try { $vj = Invoke-RestMethod -Uri "$Repo/version.json" -TimeoutSec 5; $remote = $vj.widget } catch { Step "OFFLINE, USING THE INSTALLED VERSION" 45 }
+
+  # Launcher self-update (2026-11-12): when GitHub lists a newer launcher, fetch the newest launcher script,
+  # check it, and hand over to it. It runs this same flow, so the widget update still happens before opening.
+  if (-not $Handoff -and $vj -and $vj.launcher -and ([version]$vj.launcher -gt [version]$LauncherVersion)) {
+    try {
+      Step "UPDATING THE LAUNCHER TO $($vj.launcher)" 50
+      $next = Join-Path $Home2 "launcher-core.ps1"
+      Invoke-WebRequest -Uri "$Repo/installer/Amelia%20Job%20Search.ps1" -OutFile "$next.download" -TimeoutSec 20 -UseBasicParsing
+      $code = Get-Content "$next.download" -Raw; $perr = $null
+      [void][System.Management.Automation.Language.Parser]::ParseInput($code, [ref]$null, [ref]$perr)
+      if ($perr.Count -or $code -notmatch '\$LauncherVersion = "' -or $code.Length -lt 3000) { throw "the new launcher did not look right" }
+      Move-Item "$next.download" $next -Force
+      $f.Close()
+      Start-Process -FilePath "$env:WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -WindowStyle Hidden -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$next`"", "-Handoff")
+      exit
+    } catch { Add-Content -Path $Log -Value "$(Get-Date -Format s) launcher update skipped: $($_.Exception.Message)" -ErrorAction SilentlyContinue; Remove-Item "$Home2\launcher-core.ps1.download" -ErrorAction SilentlyContinue }
+  }
 
   if ($remote -and ([version]$remote -gt [version]$local -or -not (Test-Path $Widget))) {
     Step "INSTALLING VERSION $remote" 65
@@ -143,7 +161,7 @@ Start-Process explorer.exe -ArgumentList "`"$resume`""
   Step "OPENING THE STATION" 100
   $chrome = @("$env:ProgramFiles\Google\Chrome\Application\chrome.exe", "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe", "$env:LOCALAPPDATA\Google\Chrome\Application\chrome.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
   $ver = if (Test-Path $VerFile) { (Get-Content $VerFile -Raw | ConvertFrom-Json).widget } else { "0.0.0" }
-  $url = "file:///" + ($Widget -replace "\\", "/") + "?v=" + $ver
+  $url = "file:///" + ($Widget -replace "\\", "/") + "?v=" + $ver + "&l=" + $LauncherVersion
   if ($chrome) { Start-Process $chrome -ArgumentList @("--app=$url", "--user-data-dir=$Profile2", "--window-size=820,900", "--allow-file-access-from-files") }
   else { Start-Process $url }
   Start-Sleep -Milliseconds 600
