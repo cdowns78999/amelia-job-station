@@ -14,7 +14,7 @@ New-Item -ItemType Directory -Force -Path $bak | Out-Null
 Copy-Item (Join-Path $Repo "widget"), (Join-Path $Repo "version.json") $bak -Recurse -Force
 
 & $Say "2/6 Copying the newest widget, prompt and listener"
-Copy-Item (Join-Path $WSrc "widget.html"), (Join-Path $WSrc "resume-prompt.txt") (Join-Path $Repo "widget") -Force
+Copy-Item (Join-Path $WSrc "widget.html"), (Join-Path $WSrc "resume-prompt.txt"), (Join-Path $WSrc "us-places.js") (Join-Path $Repo "widget") -Force
 Copy-Item (Join-Path $RSrc "listener.ps1"), (Join-Path $RSrc "prompt-template.txt") (Join-Path $Repo "relay") -Force
 
 & $Say "3/6 Bumping the version"
@@ -37,7 +37,7 @@ $tmp = Join-Path $env:TEMP ("ajs-setup-" + [guid]::NewGuid().ToString("N"))
 $pack = Join-Path $tmp "Amelia Job Search Setup"
 New-Item -ItemType Directory -Force -Path $pack | Out-Null
 Copy-Item (Join-Path $PSScriptRoot "Amelia Job Search.exe"), (Join-Path $PSScriptRoot "Amelia Job Search.ps1"), (Join-Path $PSScriptRoot "Amelia Job Search (backup).bat") $pack
-Copy-Item (Join-Path $Repo "widget\widget.html"), $vf $pack   # bundled fallback when GitHub is unreachable
+Copy-Item (Join-Path $Repo "widget\widget.html"), (Join-Path $Repo "widget\us-places.js"), $vf $pack   # bundled fallback when GitHub is unreachable
 @("AMELIA JOB SEARCH $new - SETUP", "", "1. Right-click this zip, choose Extract All.", "2. Double-click Amelia Job Search.exe (if Windows warns: More info, then Run anyway).",
   "3. If the exe is blocked, double-click Amelia Job Search (backup).bat instead.", "4. Follow the connection checks, then open the app, press PAIR MY WIDGET, enter your email and the AJS- code, press SEND. Chad approves you.") | Set-Content (Join-Path $pack "README.txt")
 $dist = Join-Path $Repo "dist"; New-Item -ItemType Directory -Force -Path $dist | Out-Null

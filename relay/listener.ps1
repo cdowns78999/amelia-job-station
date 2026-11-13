@@ -22,33 +22,65 @@ function Relay($body) {
 }
 function Say($id, $line) { Write-Host $line; try { Relay @{ op = "progress"; id = $id; lines = @($line) } | Out-Null } catch {} }
 
+$Boards = @("weworkremotely", "remoteco", "remoteok", "flexjobs", "workingnomads", "himalayas", "wellfound")
+
+# One request can hold several parts (2026-11-12): on site runs once per station (indeed, linkedin),
+# remote runs once over the picked boards. Each part writes its own txt; the clusters are joined into one file.
+function Run-Part($id, $dir, $lane, $r, $total, $deadline) {
+  $out = Join-Path $dir "part-$lane.txt"
+  $cities = $(if ($lane -eq "remote") { "remote" } elseif ($r.cities) { $r.cities -join "; " } else { "remote" })
+  $prompt = $Template.Replace("{LANE}", $lane).Replace("{KINDS}", ($r.kinds -join ", ")).Replace("{CITIES}", $cities).Replace("{ZIP}", "$($r.zip)").Replace("{MILES}", "$($r.miles)").Replace("{MODE}", $r.mode).Replace("{BOARDS}", ((@($r.boards) | Where-Object { $_ }) -join ", ")).Replace("{TOTAL}", "$total").Replace("{OUT}", $out)
+  $pf = Join-Path $dir "prompt-$lane.txt"
+  Set-Content -Path $pf -Value $prompt -Encoding UTF8
+  Say $id "Starting the $lane part."
+  if ($DryRun) {
+    $c = $(if ($lane -eq "remote") { "Remote" } else { "$($r.cities[0])" })
+    Set-Content -Path $out -Encoding UTF8 -Value "JOB SEARCH - dry run - 1 verified live results`n`ntitle:      Dry run $lane job`nemployer:   Test Employer`ncity:       $c`nmiles:      0`npay:        Not listed`nclearance:  n/a`nwhy:        dry run`nurl:        https://example.com/$lane`ncategory:   $($r.kinds[0])`nsite:       $lane`n"
+    return $out
+  }
+  if (Test-Path $CfgFile) { $env:CLAUDE_CONFIG_DIR = (Get-Content $CfgFile -Raw).Trim() }
+  $log = Join-Path $dir "claude-$lane.log"
+  $p = Start-Process -FilePath "claude" -ArgumentList @("-p", "--chrome", "--model", "sonnet", "--permission-mode", "acceptEdits", "--max-turns", "120", "--allowedTools", $Allowed) `
+    -RedirectStandardInput $pf -RedirectStandardOutput $log -RedirectStandardError (Join-Path $dir "claude-$lane.err") `
+    -WorkingDirectory $dir -PassThru -NoNewWindow
+  $sent = 0
+  while (-not $p.HasExited) {
+    Start-Sleep -Seconds 15
+    $lines = @(Get-Content $log -ErrorAction SilentlyContinue | Where-Object { $_ -match "^STEP:" })
+    if ($lines.Count -gt $sent) { try { Relay @{ op = "progress"; id = $id; lines = $lines[$sent..($lines.Count - 1)] } | Out-Null } catch {}; $sent = $lines.Count }
+    if ((Get-Date) -gt $deadline) { Stop-Process -Id $p.Id -Force; throw "the search ran past 40 minutes" }
+  }
+  return $out
+}
+
 function Run-Job($job) {
   $id = $job.id; $r = $job.req
   # The server already cleaned every field; check again here so nothing odd reaches the prompt.
-  if ($r.lane -notin @("indeed", "linkedin")) { throw "bad lane" }
-  foreach ($v in @($r.kinds + $r.cities)) { if ($v -notmatch "^[A-Za-z0-9 ,.'\-/]{1,40}$") { throw "bad field" } }
+  $mode = $(if ($r.mode -in @("onsite", "remote", "both")) { $r.mode } else { "onsite" })
+  $lanes = @(@($r.lanes) + @($r.lane) | Where-Object { $_ } | Select-Object -Unique)
+  foreach ($l in $lanes) { if ($l -notin @("indeed", "linkedin")) { throw "bad lane" } }
+  foreach ($b in @($r.boards | Where-Object { $_ })) { if ($b -notin $Boards) { throw "bad board" } }
+  foreach ($v in @($r.kinds + $r.cities)) { if ($v -and $v -notmatch "^[A-Za-z0-9 ,.'\-/]{1,40}$") { throw "bad field" } }
+  if ($r.zip -and "$($r.zip)" -notmatch "^\d{5}$") { throw "bad zip" }
+  $parts = @()
+  if ($mode -ne "remote") { $parts += $(if ($lanes.Count) { $lanes } else { @("indeed") }) }
+  if ($mode -ne "onsite") { if (-not @($r.boards | Where-Object { $_ }).Count) { throw "no remote boards picked" }; $parts += "remote" }
+  $each = [math]::Max(1, [math]::Ceiling([int]$r.total / $parts.Count))
   $dir = Join-Path $Runs $id; New-Item -ItemType Directory -Force -Path $dir | Out-Null
-  $out = Join-Path $dir "job-search-relay-$id.txt"
-  $prompt = $Template.Replace("{LANE}", $r.lane).Replace("{KINDS}", ($r.kinds -join ", ")).Replace("{CITIES}", ($(if ($r.cities) { $r.cities -join "; " } else { "remote" }))).Replace("{MILES}", "$($r.miles)").Replace("{MODE}", $r.mode).Replace("{TOTAL}", "$($r.total)").Replace("{OUT}", $out)
-  Set-Content -Path (Join-Path $dir "prompt.txt") -Value $prompt -Encoding UTF8
-  Say $id "Starting the $($r.lane) search."
-  if ($DryRun) {
-    Set-Content -Path $out -Encoding UTF8 -Value "JOB SEARCH - dry run - 1 verified live results`n`ntitle:      Dry run receptionist`nemployer:   Test Employer`ncity:       $($r.cities[0])`nmiles:      0`npay:        Not listed`nclearance:  n/a`nwhy:        dry run`nurl:        https://example.com/job`ncategory:   $($r.kinds[0])`n"
-  } else {
-    if (Test-Path $CfgFile) { $env:CLAUDE_CONFIG_DIR = (Get-Content $CfgFile -Raw).Trim() }
-    $log = Join-Path $dir "claude.log"
-    $p = Start-Process -FilePath "claude" -ArgumentList @("-p", "--chrome", "--model", "sonnet", "--permission-mode", "acceptEdits", "--max-turns", "120", "--allowedTools", $Allowed) `
-      -RedirectStandardInput (Join-Path $dir "prompt.txt") -RedirectStandardOutput $log -RedirectStandardError (Join-Path $dir "claude.err") `
-      -WorkingDirectory $dir -PassThru -NoNewWindow
-    $sent = 0; $limit = (Get-Date).AddMinutes(40)
-    while (-not $p.HasExited) {
-      Start-Sleep -Seconds 15
-      $lines = @(Get-Content $log -ErrorAction SilentlyContinue | Where-Object { $_ -match "^STEP:" })
-      if ($lines.Count -gt $sent) { try { Relay @{ op = "progress"; id = $id; lines = $lines[$sent..($lines.Count - 1)] } | Out-Null } catch {}; $sent = $lines.Count }
-      if ((Get-Date) -gt $limit) { Stop-Process -Id $p.Id -Force; throw "the search ran past 40 minutes" }
-    }
+  $deadline = (Get-Date).AddMinutes(40)
+  $clusters = @()
+  foreach ($lane in $parts) {
+    $f = Run-Part $id $dir $lane $r $each $deadline
+    if (Test-Path $f) {
+      # keep everything after the title line: the clusters, one blank line apart
+      $body = ((Get-Content $f -Raw) -split "\r?\n", 2)
+      if ($body.Count -gt 1 -and $body[1].Trim()) { $clusters += $body[1].Trim() }
+    } else { Say $id "The $lane part wrote no results file." }
   }
-  if (-not (Test-Path $out)) { throw "the search finished without writing a results file" }
+  if (-not $clusters.Count) { throw "the search finished without writing a results file" }
+  $out = Join-Path $dir "job-search-relay-$id.txt"
+  $count = ([regex]::Matches(($clusters -join "`n"), "(?m)^\s*title:")).Count
+  Set-Content -Path $out -Encoding UTF8 -Value ("JOB SEARCH - $(Get-Date -Format yyyy-MM-dd) - $count verified live results`n`n" + ($clusters -join "`n`n") + "`n")
   Relay @{ op = "done"; id = $id; txt = (Get-Content $out -Raw) } | Out-Null
   Write-Host "Sent back $out"
 }

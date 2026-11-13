@@ -3,8 +3,10 @@ Read only the file that flag names (C:\Users\chad\.claude\skills\amelia-job-hunt
 
   kinds:   {KINDS}
   cities:  {CITIES}
+  zip:     {ZIP}
   miles:   {MILES}
   mode:    {MODE}
+  boards:  {BOARDS}
   total:   {TOTAL}
   OUT:     {OUT}
 

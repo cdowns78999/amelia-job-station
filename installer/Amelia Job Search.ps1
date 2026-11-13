@@ -47,6 +47,8 @@ try {
     if (Test-Path $Widget) { Copy-Item $Widget "$Widget.previous" -Force }
     Move-Item $tmp $Widget -Force
     @{ widget = $remote } | ConvertTo-Json | Set-Content $VerFile
+    # the city and zip list the Job search intake uses (best effort; the widget also has an online fallback)
+    try { Invoke-WebRequest -Uri "$Repo/widget/us-places.js" -OutFile (Join-Path $Home2 "us-places.js") -TimeoutSec 30 -UseBasicParsing } catch {}
   } elseif (-not (Test-Path $Widget)) {
     # GitHub not reachable (offline, or repo not public yet): install the copy bundled in the zip.
     $here = Split-Path ([Diagnostics.Process]::GetCurrentProcess().MainModule.FileName) -Parent
@@ -55,6 +57,7 @@ try {
     if (-not (Test-Path $bund)) { throw "no internet and no bundled widget.html next to the installer" }
     Step "INSTALLING THE BUNDLED VERSION" 65
     Copy-Item $bund $Widget -Force
+    $bp = Join-Path $here "us-places.js"; if (Test-Path $bp) { Copy-Item $bp (Join-Path $Home2 "us-places.js") -Force }
     $bv = Join-Path $here "version.json"
     if (Test-Path $bv) { Copy-Item $bv $VerFile -Force } else { @{ widget = "0.0.0" } | ConvertTo-Json | Set-Content $VerFile }
   }
@@ -99,6 +102,41 @@ try {
   # Save them a step: make Documents\Resume if it is missing. Never touches files already inside it.
   if (-not (Test-Path $resume)) { try { New-Item -ItemType Directory -Path $resume -Force | Out-Null } catch {} }
   $checks += Chk "Resume folder" (Test-Path $resume) $resume
+  # One-click links for the widget (2026-11-12), current user only, no admin:
+  #   ameliajobs://resume  opens Documents\Resume in File Explorer
+  #   ameliajobs://copy    copies the newest resume PDF from Downloads (last 20 minutes) into Documents\Resume
+  # The helper only knows these two fixed jobs. Anything else in the link just opens the folder.
+  try {
+    $helper = Join-Path $Home2 "resume-helper.ps1"
+    Set-Content -Path $helper -Encoding UTF8 -Value @'
+param([string]$Link = "")
+$resume = Join-Path ([Environment]::GetFolderPath("MyDocuments")) "Resume"
+if (-not (Test-Path $resume)) { New-Item -ItemType Directory -Path $resume -Force | Out-Null }
+Add-Type -AssemblyName System.Windows.Forms
+function Note($m) { [System.Windows.Forms.MessageBox]::Show($m, "Amelia Job Search") | Out-Null }
+if ($Link -match '^ameliajobs://copy/?$') {
+  $dl = Join-Path $env:USERPROFILE "Downloads"
+  try { $x = (Get-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders" -ErrorAction Stop)."{374DE290-123F-4565-9164-39C4925E467B}"; if ($x -and (Test-Path $x)) { $dl = $x } } catch {}
+  $since = (Get-Date).AddMinutes(-20)
+  $pdfs = @(Get-ChildItem -Path $dl -Filter *.pdf -File -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -ge $since -and $_.Length -gt 1000 })
+  if (-not $pdfs.Count) { Note "No PDF was downloaded in the last 20 minutes. Download your resume from Gemini first, then press Run copy again."; exit }
+  # resume in the name wins, then the newest one
+  $pick = $pdfs | Sort-Object @{ Expression = { $_.Name -match 'resume|cv' }; Descending = $true }, @{ Expression = { $_.LastWriteTime }; Descending = $true } | Select-Object -First 1
+  $n = 1; while (Test-Path (Join-Path $resume "Resume copy $n.pdf")) { $n++ }
+  $dest = Join-Path $resume "Resume copy $n.pdf"
+  Copy-Item -LiteralPath $pick.FullName -Destination $dest
+  Start-Process explorer.exe -ArgumentList "/select,`"$dest`""
+  exit
+}
+Start-Process explorer.exe -ArgumentList "`"$resume`""
+'@
+    $cls = "HKCU:\Software\Classes\ameliajobs"
+    New-Item -Path "$cls\shell\open\command" -Force | Out-Null
+    Set-ItemProperty -Path $cls -Name "(default)" -Value "URL:Amelia Job Search"
+    Set-ItemProperty -Path $cls -Name "URL Protocol" -Value ""
+    Set-ItemProperty -Path "$cls\shell\open\command" -Name "(default)" -Value ("`"$env:WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe`" -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$helper`" `"%1`"")
+  } catch {}
+  $checks += Chk "Open Resume folder link" (Test-Path "HKCU:\Software\Classes\ameliajobs\shell\open\command") "the widget's Open my Resume folder link"
   $json = @{ at = (Get-Date -Format s); version = $(if (Test-Path $VerFile) { (Get-Content $VerFile -Raw | ConvertFrom-Json).widget } else { "0.0.0" }); checks = $checks } | ConvertTo-Json -Depth 4 -Compress
   Set-Content -Path (Join-Path $Home2 "checks.js") -Value "window.AJS_CHECKS = $json;" -Encoding UTF8
 
