@@ -2,7 +2,7 @@
 # Every run: loading screen -> install if missing -> check GitHub for a newer widget -> open the widget window.
 # Touches only %LOCALAPPDATA%\AmeliaJobStation and one Desktop shortcut. No admin, no services, no hidden tasks.
 param([switch]$NoWindow, [switch]$Handoff)
-$LauncherVersion = "1.1.0"
+$LauncherVersion = "1.1.1"
 $ErrorActionPreference = "Stop"
 $Repo = "https://raw.githubusercontent.com/cdowns78999/amelia-job-station/main"
 $Home2 = Join-Path $env:LOCALAPPDATA "AmeliaJobSearch"
@@ -81,12 +81,15 @@ try {
   }
 
   Step "MAKING THE SHORTCUT" 85
+  # J icon for the shortcut (the EXE carries it too); fetched once, then reused
+  $ico = Join-Path $Home2 "amelia.ico"
+  if (-not (Test-Path $ico)) { try { Invoke-WebRequest -Uri "$Repo/installer/art/amelia.ico" -OutFile $ico -TimeoutSec 15 -UseBasicParsing } catch {} }
   $lnk = Join-Path ([Environment]::GetFolderPath("Desktop")) "Amelia Job Search.lnk"
   $self = [Diagnostics.Process]::GetCurrentProcess().MainModule.FileName
   if ($self -match "\\Amelia Job Search\.exe$") {
     $exeHome = Join-Path $Home2 "Amelia Job Search.exe"
     if ($self -ne $exeHome) { Copy-Item $self $exeHome -Force }
-    if (-not (Test-Path $lnk)) { $w = New-Object -ComObject WScript.Shell; $sc = $w.CreateShortcut($lnk); $sc.TargetPath = $exeHome; $sc.WorkingDirectory = $Home2; $sc.Save() }
+    if (-not (Test-Path $lnk)) { $w = New-Object -ComObject WScript.Shell; $sc = $w.CreateShortcut($lnk); $sc.TargetPath = $exeHome; $sc.WorkingDirectory = $Home2; if (Test-Path $ico) { $sc.IconLocation = "$ico,0" }; $sc.Save() }
   } elseif (-not (Test-Path $lnk)) {
     # Started from the .ps1 or the backup .bat: keep a copy of this script in the install folder and point the
     # Desktop shortcut at it (or at the installed exe, if an earlier exe run left one), so there is always one shortcut.
@@ -99,7 +102,7 @@ try {
       $sc.TargetPath = "powershell.exe"
       $sc.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$psHome2`""
     }
-    if ($sc.TargetPath) { $sc.Save() }
+    if ($sc.TargetPath) { if (Test-Path $ico) { $sc.IconLocation = "$ico,0" }; $sc.Save() }
   }
 
   $chromePath = @("$env:ProgramFiles\Google\Chrome\Application\chrome.exe", "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe", "$env:LOCALAPPDATA\Google\Chrome\Application\chrome.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
