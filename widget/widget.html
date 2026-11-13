@@ -212,6 +212,18 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;heigh
 .star.on{color:var(--cyan);text-shadow:0 0 10px rgba(56,232,255,.7)}
 .star.pop{animation:pop .3s var(--block)}
 @keyframes pop{50%{transform:scale(1.35)}}
+.ld{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.ldr{display:flex;align-items:center;gap:10px;color:var(--dim);font-weight:600;transition:color .3s}
+.ldr i{width:10px;height:10px;border-radius:50%;border:1px solid var(--hair);transition:background .3s,border-color .3s,box-shadow .3s}
+.ldr.now{color:#fff}.ldr.now i{border-color:var(--cyan);background:var(--cyan);box-shadow:0 0 10px var(--cyan);animation:breathe2 1s ease-in-out infinite}
+.ldr.ok{color:var(--ok)}.ldr.ok i{border-color:var(--ok);background:var(--ok)}
+.ldr.bad{color:var(--err)}.ldr.bad i{border-color:var(--err);background:var(--err)}
+.ldbar{height:2px;background:var(--hair2);border-radius:2px;overflow:hidden;margin-top:4px}.ldbar div{height:100%;width:0;background:var(--cyan);transition:width .45s var(--glide)}
+.sten.landing{border-color:rgba(56,232,255,.7);background:rgba(7,16,24,.5)}.sten.landing .state{color:#fff;animation:breathe2 .9s ease-in-out infinite}
+.sten.leave{animation:blkOut .3s ease-in both}
+.sten .sh,.sten .state{transition:color .3s}
+#toast{position:fixed;left:50%;bottom:24px;z-index:99;transform:translate(-50%,20px);opacity:0;pointer-events:none;background:rgba(7,16,24,.95);border:1px solid rgba(56,232,255,.5);border-radius:999px;padding:10px 20px;font-weight:600;color:#fff;transition:opacity .35s,transform .45s var(--glide);max-width:calc(100vw - 32px)}
+#toast.on{opacity:1;transform:translate(-50%,0)}
 .flyer{position:fixed;z-index:96;pointer-events:none;border:1px dashed var(--cyan);border-radius:16px;background:rgba(7,16,24,.6);transition:transform .7s var(--glide),opacity .7s}
 
 /* job overlay */
@@ -764,7 +776,7 @@ current one is finished and the user has said so.
     <div class="brand"><h1>Amelia Job Search</h1><div class="sub">Job search workstation</div></div>
     <div class="hright">
       <button class="tiny" id="mute">Sound off</button><button class="tiny" id="checksbtn">Checks</button>
-      <div class="ver"><span id="ver">v0.4.10</span><small id="upd">checking for update</small></div>
+      <div class="ver"><span id="ver">v0.4.11</span><small id="upd">checking for update</small></div>
     </div>
   </header>
   <nav id="views"><span id="vbar"></span></nav>
@@ -934,6 +946,8 @@ function paintResume(el){
   var ex=$("example");if(ex)ex.onclick=function(){window.open("https://drive.google.com/file/d/1jXRV1iXhukhkTnJOXIgBAtaSOphsC320/view","_blank","noopener");};
   wireOpen(el);
 }
+function toast(t,ms){var d=$("toast");if(!d){d=document.createElement("div");d.id="toast";document.body.appendChild(d);}d.textContent=t;d.classList.add("on");clearTimeout(d._t);d._t=setTimeout(function(){d.classList.remove("on");},ms||3200);}
+document.addEventListener("click",function(e){var a=e.target.closest&&e.target.closest('a[href^="ameliajobs://"]');if(!a)return;var c=/copy/.test(a.getAttribute("href"));toast(c?"Looking in Downloads for your newest resume PDF. If Windows asks, choose Open.":"Opening your Resume folder. If Windows asks, choose Open.");});
 function wireOpen(el){el.querySelectorAll("[data-open]").forEach(function(b){b.onclick=function(e){e.stopPropagation();var u=b.getAttribute("data-open");if(/^https?:\/\//.test(u))window.open(u,"_blank","noopener");};});}
 
 /* ===== slider 2: one workstation. Left: create + block stack. Right: search directory ===== */
@@ -1081,56 +1095,99 @@ function paintPending(s){
 /* --- Send to Miles: fixed fields only. lane, cities and a snapped miles keep the live relay happy until the new one ships --- */
 function payload(s){var m=modeOf(s);var p=s.place;
   return{mode:m,lane:(s.lanes&&s.lanes[0])||"indeed",lanes:s.lanes||[],boards:s.boards||[],cities:p&&m!=="remote"?[p.city+", "+p.state]:[],zip:p&&m!=="remote"?p.zip:"",miles:s.miles,kinds:s.kinds,total:s.total};}
+/* ===== send with a 3 step load card, then the tile flies to the directory ===== */
+function wait(ms){return new Promise(function(r){setTimeout(r,ms);});}
+function loader(box,steps){
+  box.innerHTML='<div class="ld">'+steps.map(function(t,i){return '<div class="ldr" data-i="'+i+'"><i></i><span>'+esc(t)+"</span></div>";}).join("")+'<div class="ldbar"><div></div></div></div>';
+  var bar=box.querySelector(".ldbar div");
+  return{step:function(i){box.querySelectorAll(".ldr").forEach(function(r,k){r.classList.toggle("now",k===i);r.classList.toggle("ok",k<i);});bar.style.width=Math.round(i/steps.length*100)+"%";},
+    done:function(){box.querySelectorAll(".ldr").forEach(function(r){r.classList.remove("now");r.classList.add("ok");});bar.style.width="100%";},
+    fail:function(t){var n=box.querySelector(".ldr.now");if(n){n.classList.remove("now");n.classList.add("bad");if(t)n.querySelector("span").textContent=t;}}};
+}
 function sendSearch(s,fromEl){
   if((S.sent||0)>=2&&!(S.kit&&S.kit.complete)){msg("Nice start. Finish your resume first (Resume slider) before you send more searches.");beep(220);return;}
   if(busySearch()){msg("One search at a time. Wait for the one with Miles to come back.");return;}
-  var btn=$("psend");if(btn)btn.disabled=true;
-  call("w-request",payload(s)).then(function(j){
-    if(!j.ok){if(btn)btn.disabled=false;msg(j.error||"That did not send.");beep(220);return;}
-    s.reqId=j.job.id;s.status=j.job.status||"waiting";s.sentAt=Date.now();S.pcAwake=j.pcAwake;S.sent=(S.sent||0)+1;S.pending="";S.draft=newDraft();save();beep(990);
-    var from=fromEl&&fromEl.getBoundingClientRect();
-    paintDir(s.id);
+  var row=fromEl.querySelector(".row"),box=document.createElement("div");row.replaceWith(box);
+  var L=loader(box,["Checking your search","Sending it to Miles","Saving it in your directory"]),p=payload(s),reply=null;
+  L.step(0);
+  wait(450).then(function(){
+    if(!p.kinds.length||(p.mode!=="remote"&&!p.zip)||(p.mode!=="onsite"&&!p.boards.length))throw new Error("Something is missing. Press Edit and check each block.");
+    L.step(1);return Promise.all([call("w-request",p),wait(500)]);
+  }).then(function(r){reply=r[0];if(!reply.ok)throw new Error(reply.error||"That did not send.");
+    L.step(2);return wait(420);
+  }).then(function(){var j=reply;
+    s.reqId=j.job.id;s.status=j.job.status||"waiting";s.sentAt=Date.now();S.pcAwake=j.pcAwake;S.sent=(S.sent||0)+1;S.pending="";S.draft=newDraft();save();L.done();beep(990);
+    return wait(260);
+  }).then(function(){
+    var from=fromEl.getBoundingClientRect();
+    paintDir();
     var to=document.querySelector('[data-s="'+s.id+'"]');
-    if(from&&to){var tr=to.getBoundingClientRect(),f=document.createElement("div");f.className="flyer";f.style.left=from.left+"px";f.style.top=from.top+"px";f.style.width=from.width+"px";f.style.height=from.height+"px";document.body.appendChild(f);
-      to.style.opacity="0";f.offsetHeight;f.style.transform="translate("+(tr.left-from.left)+"px,"+(tr.top-from.top)+"px) scale("+(tr.width/from.width)+","+(tr.height/from.height)+")";f.style.transformOrigin="0 0";
+    if(to){var tr=to.getBoundingClientRect(),f=document.createElement("div");f.className="flyer";f.style.left=from.left+"px";f.style.top=from.top+"px";f.style.width=from.width+"px";f.style.height=from.height+"px";document.body.appendChild(f);
+      to.style.opacity="0";fromEl.style.transition="opacity .3s";fromEl.style.opacity="0";f.offsetHeight;f.style.transformOrigin="0 0";
+      f.style.transform="translate("+(tr.left-from.left)+"px,"+(tr.top-from.top)+"px) scale("+(tr.width/from.width)+","+(tr.height/from.height)+")";
       setTimeout(function(){f.style.opacity="0";to.style.opacity="";to.classList.add("arrive");},620);setTimeout(function(){f.remove();},1300);}
-    paintLeft();
-  }).catch(function(){if(btn)btn.disabled=false;msg("Could not reach the app.");});
+    setTimeout(paintLeft,380);
+  }).catch(function(e){L.fail(e&&e.message&&e.message!=="Failed to fetch"?e.message:"Could not reach the app. Check the internet.");beep(220);
+    setTimeout(function(){if(S.pending===s.id)paintPending(s);},2400);});
 }
 
-/* --- right half: search directory, one stencil per search --- */
+/* ===== right half: search directory. Updated in place, never redrawn, so nothing jumps ===== */
 var STATE_LABEL={waiting:"Waiting for Miles",queued:"Approved, in line",running:"Running now",failed:"Did not finish",cancelled:"Cancelled"};
-function paintDir(arriveId){
+function stenClass(s){var a=ACTIVE[s.status];return "sten"+(a?" ghost":"")+(s.status==="running"||s.status==="queued"?" run":"")+(s.status==="done"&&!s.landing?" done":"")+(s.landing?" landing":"")+(s.status==="failed"?" failed":"");}
+function stenHead(s){
+  var n=(s.jobIds||[]).length,active=ACTIVE[s.status];
+  var state=s.landing?'<div class="state" data-land>Results arriving</div>':s.status==="done"?'<div class="state ok">'+n+(n===1?" job back":" jobs back")+"</div>":'<div class="state">'+(STATE_LABEL[s.status]||s.status)+(s.sentAt&&active?" · sent "+new Date(s.sentAt).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"}):"")+"</div>";
+  var extra=s.status==="waiting"||s.status==="queued"?'<button class="tiny" data-cancel="'+s.id+'">Cancel</button>':s.status==="failed"||s.status==="cancelled"?'<button class="tiny go" data-retry="'+s.id+'">Try again</button><button class="tiny" data-drop="'+s.id+'">Remove</button>':"";
+  return '<div class="si"><div class="stt">'+esc(sTitle(s))+'</div><div class="ss">'+esc(sSub(s))+"</div>"+state+(s.err&&!active?'<div class="mute" style="font-size:.8rem">'+esc(s.err)+"</div>":"")+'</div><div class="ctl">'+extra+
+    '<button class="arw" data-up="'+s.id+'" aria-label="Previous job">▲</button><button class="arw" data-dn="'+s.id+'" aria-label="Next job">▼</button><button class="blue" data-tog="'+s.id+'"'+(s.status==="done"&&n&&!s.landing?"":" disabled")+' aria-label="Open or close"><span>▾</span></button></div>';
+}
+function stenSig(s){return [s.status,(s.jobIds||[]).length,s.err||"",!!s.landing,sTitle(s)].join("|");}
+function paintDir(){
   var D=$("dir");if(!D)return;
   var list=S.searches.filter(function(s){return s.status!=="draft";});
   $("dircount").textContent=list.length?list.length+(list.length===1?" search":" searches"):"";
-  if(!list.length){D.innerHTML='<div class="empty">Searches you send to Miles show up here, one tile each.</div>';return;}
-  var keep={};D.querySelectorAll(".jlist").forEach(function(l){keep[l.getAttribute("data-l")]=l.scrollTop;});
-  D.innerHTML=list.map(function(s){
-    var n=(s.jobIds||[]).length,active=ACTIVE[s.status],cls="sten"+(active?" ghost":"")+(s.status==="running"||s.status==="queued"?" run":"")+(s.status==="done"?" done":"")+(s.status==="failed"?" failed":"")+(s.open&&s.status==="done"?" open":"")+(s.fresh?" fill":"");
-    var state=s.status==="done"?'<div class="state ok">'+n+(n===1?" job back":" jobs back")+"</div>":'<div class="state">'+(STATE_LABEL[s.status]||s.status)+(s.sentAt&&active?" · sent "+new Date(s.sentAt).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"}):"")+"</div>";
-    var extra=s.status==="waiting"||s.status==="queued"?'<button class="tiny" data-cancel="'+s.id+'">Cancel</button>':s.status==="failed"||s.status==="cancelled"?'<button class="tiny go" data-retry="'+s.id+'">Try again</button><button class="tiny" data-drop="'+s.id+'">Remove</button>':"";
-    var jobs=s.status==="done"&&s.open?(s.jobIds||[]).map(find).filter(Boolean).map(function(j,i){return jobTile(j,i);}).join("")||'<div class="empty">No jobs in this search.</div>':"";
-    return '<div class="'+cls+'" data-s="'+s.id+'"><div class="sh"><div class="si"><div class="stt">'+esc(sTitle(s))+'</div><div class="ss">'+esc(sSub(s))+"</div>"+state+(s.err&&!active?'<div class="mute" style="font-size:.8rem">'+esc(s.err)+"</div>":"")+'</div><div class="ctl">'+extra+'<button class="arw" data-up="'+s.id+'" aria-label="Previous job">▲</button><button class="arw" data-dn="'+s.id+'" aria-label="Next job">▼</button><button class="blue" data-tog="'+s.id+'"'+(s.status==="done"&&n?"":" disabled")+' aria-label="Open or close"><span>▾</span></button></div></div>'+
-      '<div class="sb"><div><div class="jlist" data-l="'+s.id+'">'+jobs+"</div></div></div></div>";}).join("");
-  list.forEach(function(s){s.fresh=false;});save();
-  D.querySelectorAll(".jlist").forEach(function(l){var v=keep[l.getAttribute("data-l")];if(v){l.style.scrollBehavior="auto";l.scrollTop=v;l.style.scrollBehavior="";}});
-  if(arriveId){var a=D.querySelector('[data-s="'+arriveId+'"]');if(a)a.classList.add("arrive");}
-  wireDir(D);paintArrows();
+  var empty=D.querySelector(".empty.dirempty");
+  if(!list.length){if(!empty)D.innerHTML='<div class="empty dirempty">Searches you send to Miles show up here, one tile each.</div>';return;}
+  if(empty)empty.remove();
+  var ids={};list.forEach(function(s){ids[s.id]=1;});
+  D.querySelectorAll(".sten").forEach(function(el){if(!ids[el.getAttribute("data-s")]&&!el.classList.contains("leave")){el.classList.add("leave");setTimeout(function(){el.remove();},320);}});
+  var prev=null;
+  list.forEach(function(s){
+    var el=D.querySelector('.sten[data-s="'+s.id+'"]:not(.leave)');
+    if(!el){el=document.createElement("div");el.setAttribute("data-s",s.id);el.innerHTML='<div class="sh"></div><div class="sb"><div><div class="jlist" data-l="'+s.id+'"></div></div></div>';el.classList.add("arrive");}
+    var sig=stenSig(s);
+    if(el.getAttribute("data-sig")!==sig){var open=el.classList.contains("open");el.setAttribute("data-sig",sig);el.querySelector(".sh").innerHTML=stenHead(s);
+      el.className=stenClass(s)+(open?" open":"")+(el.classList.contains("arrive")?" arrive":"");wireSten(el,s);
+      if(s.fresh){s.fresh=false;el.classList.add("fill");setTimeout(function(){el.classList.remove("fill");},1300);}}
+    var anchor=prev?prev.nextSibling:D.firstChild;if(el!==anchor)D.insertBefore(el,anchor);prev=el;
+    if(s.open&&s.status==="done"&&!el.classList.contains("open"))openSten(el,s,true);
+  });
+  save();paintArrows();
+}
+function fillJobs(el,s){var l=el.querySelector(".jlist");l.innerHTML=(s.jobIds||[]).map(find).filter(Boolean).map(function(j,i){return jobTile(j,i);}).join("")||'<div class="empty">No jobs in this search.</div>';
+  markCur(l,Math.min(s.cursor||0,Math.max(0,l.querySelectorAll(".jt").length-1)));wireJobs(l);}
+function openSten(el,s,instant){fillJobs(el,s);if(instant){el.classList.add("open");return;}
+  el.offsetHeight;setTimeout(function(){el.classList.add("open");paintArrows();},30);}
+function closeSten(el,s){el.classList.remove("open");setTimeout(function(){if(!s.open)el.querySelector(".jlist").innerHTML="";},520);}
+/* the 3 step landing when results come back */
+function landSten(s){
+  s.landing=true;paintDir();
+  var el=document.querySelector('.sten[data-s="'+s.id+'"]');var n=(s.jobIds||[]).length;
+  var lines=["Results arriving","Reading the job clusters","Sorting "+n+(n===1?" job":" jobs")];
+  lines.forEach(function(t,i){setTimeout(function(){var st=el&&el.querySelector("[data-land]");if(st)st.textContent=t;},i*520);});
+  setTimeout(function(){s.landing=false;s.fresh=true;paintDir();beep(1200);paintGoal();if(S.view==="search")paintLeft();},lines.length*520+200);
+}
+function wireSten(el,s){
+  var b=el.querySelector("[data-tog]");if(b)b.onclick=function(){s.open=!s.open;beep(s.open?760:440);save();if(s.open)openSten(el,s);else closeSten(el,s);};
+  el.querySelectorAll("[data-up],[data-dn]").forEach(function(a){a.onclick=function(){var l=el.querySelector(".jlist"),tiles=l.querySelectorAll(".jt");if(!tiles.length)return;
+    var c=s.cursor||0;c=a.hasAttribute("data-up")?Math.max(0,c-1):Math.min(tiles.length-1,c+1);s.cursor=c;markCur(l,c);var tt=tiles[c];
+    if(tt.offsetTop<l.scrollTop||tt.offsetTop+tt.offsetHeight>l.scrollTop+l.clientHeight)l.scrollTo({top:tt.offsetTop-8,behavior:"smooth"});beep(600);paintArrows();save();};});
+  var c=el.querySelector("[data-cancel]");if(c)c.onclick=function(){c.disabled=true;c.textContent="Cancelling";call("w-cancel",{id:s.reqId}).then(function(){s.status="cancelled";save();paintDir();paintLeft();}).catch(function(){c.disabled=false;c.textContent="Cancel";});};
+  var r=el.querySelector("[data-retry]");if(r)r.onclick=function(){s.status="draft";S.pending=s.id;s.err="";save();paintDir();paintLeft();};
+  var d=el.querySelector("[data-drop]");if(d)d.onclick=function(){S.searches=S.searches.filter(function(x){return x!==s;});save();paintDir();};
 }
 function jobTile(j,i){var s=siteOf(j),fav=S.favs.indexOf(j.id)>-1;
   return '<div class="jt" data-job="'+j.id+'" style="animation-delay:'+(i*0.14)+'s"><b>'+esc(j.title)+'</b><button class="star'+(fav?" on":"")+'" data-star="'+j.id+'" aria-label="Save to favorites">'+(fav?"★":"☆")+'</button><div class="jm">'+(s!=="other"?'<span class="badge '+siteClass(s)+'">'+esc(siteLabel(s))+"</span> ":"")+esc(j.employer)+(j.city?" · "+esc(j.city):"")+(j.miles?" · "+esc(j.miles)+" mi":"")+(j.pay?" · "+esc(j.pay):"")+"</div></div>";}
-function wireDir(D){
-  D.querySelectorAll("[data-tog]").forEach(function(b){b.onclick=function(){var s=sFind(b.getAttribute("data-tog"));s.open=!s.open;beep(s.open?760:440);
-    var el=b.closest(".sten");if(s.open){paintDir();}else{el.classList.remove("open");save();setTimeout(function(){if(!s.open)el.querySelector(".jlist").innerHTML="";},520);}};});
-  D.querySelectorAll("[data-up],[data-dn]").forEach(function(b){b.onclick=function(){var id=b.getAttribute("data-up")||b.getAttribute("data-dn"),l=D.querySelector('[data-l="'+id+'"]'),tiles=l.querySelectorAll(".jt");if(!tiles.length)return;
-    var s=sFind(id),c=s.cursor||0;c=b.hasAttribute("data-up")?Math.max(0,c-1):Math.min(tiles.length-1,c+1);s.cursor=c;markCur(l,c);var tt=tiles[c];if(tt.offsetTop<l.scrollTop||tt.offsetTop+tt.offsetHeight>l.scrollTop+l.clientHeight)l.scrollTo({top:tt.offsetTop-8,behavior:"smooth"});beep(600);paintArrows();save();};});
-  D.querySelectorAll(".jlist").forEach(function(l){var s=sFind(l.getAttribute("data-l"));if(s&&l.children.length)markCur(l,Math.min(s.cursor||0,l.children.length-1));});
-  D.querySelectorAll("[data-cancel]").forEach(function(b){b.onclick=function(){var s=sFind(b.getAttribute("data-cancel"));call("w-cancel",{id:s.reqId}).then(function(){s.status="cancelled";save();paintDir();paintLeft();});};});
-  D.querySelectorAll("[data-retry]").forEach(function(b){b.onclick=function(){var s=sFind(b.getAttribute("data-retry"));s.status="draft";S.pending=s.id;s.err="";save();paintDir();paintLeft();};});
-  D.querySelectorAll("[data-drop]").forEach(function(b){b.onclick=function(){var id=b.getAttribute("data-drop");S.searches=S.searches.filter(function(s){return s.id!==id;});save();paintDir();};});
-  wireJobs(D);
-}
 function markCur(l,c){Array.prototype.forEach.call(l.querySelectorAll(".jt"),function(t,i){t.classList.toggle("cur",i===c);});}
 function paintArrows(){document.querySelectorAll(".sten.open").forEach(function(st){var l=st.querySelector(".jlist");if(!l)return;var n=l.querySelectorAll(".jt").length,s=sFind(st.getAttribute("data-s")),c=s?s.cursor||0:0;st.querySelector("[data-up]").disabled=c<=0;st.querySelector("[data-dn]").disabled=c>=n-1;});}
 function wireJobs(root){
@@ -1210,7 +1267,7 @@ function wireTracker(el){
 function pollSearches(){S.searches.filter(function(s){return ACTIVE[s.status]&&s.reqId;}).forEach(function(s){
   call("w-status",{id:s.reqId,withTxt:true}).then(function(j){if(!j.ok)return;S.pcAwake=j.pcAwake;var m=(j.jobs||[]).filter(function(x){return x.id===s.reqId;})[0];if(!m)return;
     var was=s.status;s.status=m.status;s.err=m.error||"";
-    if(m.status==="done"&&j.txt){addJobs(parseTxt(j.txt),s);s.fresh=true;beep(1200);paintGoal();}
+    if(m.status==="done"&&j.txt){addJobs(parseTxt(j.txt),s);save();if(S.view==="search"&&$("dir")){landSten(s);return;}s.fresh=true;beep(1200);paintGoal();}
     if(was!==s.status){save();if(S.view==="search"){paintDir();paintLeft();}}}).catch(function(){});});}
 setInterval(function(){if(!S.paired){if(S.code&&S.code.indexOf("AJS-")===0)pairCheck();}else pollSearches();},8000);
 
@@ -1304,7 +1361,7 @@ function startGlow(){
 }
 
 /* ===== version plate ===== */
-var WIDGET_VERSION="0.4.10";
+var WIDGET_VERSION="0.4.11";
 var mine=(/[?&]v=([0-9.]{1,12})/.exec(location.search)||[])[1]||WIDGET_VERSION;
 $("ver").textContent="v"+mine;
 function newer(a,b){a=a.split(".").map(Number);b=b.split(".").map(Number);for(var i=0;i<3;i++){if((a[i]||0)!==(b[i]||0))return(a[i]||0)>(b[i]||0);}return false;}
